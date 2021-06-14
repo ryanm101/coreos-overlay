@@ -122,3 +122,6 @@ app-portage/portage-utils -qmanifest -qtegrity
 
 # Disable unnecessary regedit in samba to minimize the package size.
 net-fs/samba -regedit
+
+# Enable nftables backend for the iptables instead of legacy backend
+net-firewall/iptables nftables

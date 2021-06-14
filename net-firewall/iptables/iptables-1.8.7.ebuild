@@ -16,9 +16,6 @@ SLOT="0/1.8.3"
 KEYWORDS="~alpha amd64 arm arm64 ~hppa ~ia64 ~m68k ~mips ppc ppc64 ~riscv ~s390 sparc x86"
 IUSE="conntrack ipv6 netlink nftables pcap static-libs"
 
-BUILD_DEPEND="
-	>=app-eselect/eselect-iptables-20200508
-"
 COMMON_DEPEND="
 	conntrack? ( >=net-libs/libnetfilter_conntrack-1.0.6 )
 	netlink? ( net-libs/libnfnetlink )
@@ -32,7 +29,8 @@ DEPEND="${COMMON_DEPEND}
 	virtual/os-headers
 	>=sys-kernel/linux-headers-4.4:0
 "
-BDEPEND="${BUILD_DEPEND}
+BDEPEND="
+	>=app-eselect/eselect-iptables-20200508
 	app-eselect/eselect-iptables
 	virtual/pkgconfig
 	nftables? (
@@ -41,7 +39,6 @@ BDEPEND="${BUILD_DEPEND}
 	)
 "
 RDEPEND="${COMMON_DEPEND}
-	${BUILD_DEPEND}
 	nftables? ( net-misc/ethertypes )
 	!<net-firewall/ebtables-2.0.11-r1
 	!<net-firewall/arptables-0.0.5-r1
@@ -123,9 +120,9 @@ src_install() {
 		rm "${ED}"/sbin/{arptables,ebtables}{,-{save,restore}} || die
 	fi
 
-	systemd_dounit "${FILESDIR}"/systemd/iptables-{re,}store.service
+	systemd_dounit "${FILESDIR}"/systemd/iptables{,-{re,}store}.service
 	if use ipv6 ; then
-		systemd_dounit "${FILESDIR}"/systemd/ip6tables-{re,}store.service
+		systemd_dounit "${FILESDIR}"/systemd/ip6tables{,-{re,}store}.service
 	fi
 
 	# Move important libs to /lib #332175
@@ -135,7 +132,7 @@ src_install() {
 }
 
 pkg_postinst() {
-	local default_iptables="xtables-legacy-multi"
+	local default_iptables="xtables-nft-multi"
 	if ! eselect iptables show &>/dev/null; then
 		elog "Current iptables implementation is unset, setting to ${default_iptables}"
 		eselect iptables set "${default_iptables}"
@@ -146,7 +143,7 @@ pkg_postinst() {
 		for tables in {arp,eb}tables; do
 			if ! eselect ${tables} show &>/dev/null; then
 				elog "Current ${tables} implementation is unset, setting to ${default_iptables}"
-				eselect ${tables} set xtables-nft-multi
+				eselect ${tables} set "${default_iptables}"
 			fi
 		done
 	fi
