@@ -13,12 +13,15 @@ jobs:
       - name: Fetch latest Go release
         id: fetch-latest-release
         env:
-          GO_VERSION: "1.16"
+          GO_VERSIONS: "1.15 1.16"
         run: |
           git clone --depth=1 --no-checkout https://github.com/golang/go
-          versionMain=$(git -C go ls-remote --tags origin | cut -f2 | sed -n "/refs\/tags\/go${GO_VERSION}\.[0-9]*$/s/^refs\/tags\/go//p" | egrep -v -e '(beta|rc)' | sort -ruV | head -1)
+          versionsMain=()
+          for goversion in ${GO_VERSIONS}; do
+            versionsMain+=($(git -C go ls-remote --tags origin | cut -f2 | sed -n "/refs\/tags\/go${goversion}\.[0-9]*$/s/^refs\/tags\/go//p" | egrep -v -e '(beta|rc)' | sort -ruV | head -1))
+          done
           rm -rf go
-          echo ::set-output name=VERSION_MAIN::$(echo ${versionMain})
+          echo ::set-output name=VERSIONS_MAIN::$(echo ${versionsMain[*]})
           echo ::set-output name=BASE_BRANCH_MAIN::main
       - name: Set up Flatcar SDK
         id: setup-flatcar-sdk
@@ -29,7 +32,7 @@ jobs:
           TARGET: main
           BASE_BRANCH: ${{ steps.fetch-latest-release.outputs.BASE_BRANCH_MAIN }}
           PATH: ${{ steps.setup-flatcar-sdk.outputs.path }}
-          VERSION_NEW: ${{ steps.fetch-latest-release.outputs.VERSION_MAIN }}
+          VERSIONS_NEW: ${{ steps.fetch-latest-release.outputs.VERSIONS_MAIN }}
         run: .github/workflows/go-apply-patch.sh
       - name: Create pull request for main
         uses: peter-evans/create-pull-request@v3
@@ -37,10 +40,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           base: ${{ steps.fetch-latest-release.outputs.BASE_BRANCH_MAIN }}
-          branch: go-${{ steps.fetch-latest-release.outputs.VERSION_MAIN }}-main
+          branch: ${{ steps.apply-patch-main.outputs.BRANCH_NAME }}
           author: Flatcar Buildbot <buildbot@flatcar-linux.org>
           committer: Flatcar Buildbot <buildbot@flatcar-linux.org>
-          title: Upgrade Go in main from ${{ steps.apply-patch-main.outputs.VERSION_OLD }} to ${{ steps.fetch-latest-release.outputs.VERSION_MAIN }}
-          commit-message: Upgrade Go in main from ${{ steps.apply-patch-main.outputs.VERSION_OLD }} to ${{ steps.fetch-latest-release.outputs.VERSION_MAIN }}
+          title: Upgrade Go from ${{ steps.apply-patch-main.outputs.VERSIONS_OLD }} to ${{ steps.apply-patch-main.outputs.VERSIONS_NEW }}
+          commit-message: Upgrade Go from ${{ steps.apply-patch-main.outputs.VERSION_OLD }} to ${{ steps.fetch-latest-release.outputs.VERSION_MAIN }}
           body: Upgrade Go in main from ${{ steps.apply-patch-main.outputs.VERSION_OLD }} to ${{ steps.fetch-latest-release.outputs.VERSION_MAIN }}
           labels: main
